@@ -108,10 +108,10 @@ public class JavaScriptLifter: Lifter {
             }
         }
         
-        for instr in program.code {
+        for (idx, instr) in program.code.enumerated() {
             // Convenience access to inputs
-            func input(_ idx: Int) -> Expression {
-                return expr(for: instr.input(idx))
+            func input(_ n: Int) -> Expression {
+                return expr(for: instr.input(n))
             }
             
             // Helper functions to lift a function definition
@@ -400,7 +400,7 @@ public class JavaScriptLifter: Lifter {
                 
             case is EndDoWhile:
                 w.decreaseIndentionLevel()
-                let begin = Block(endedBy: instr, in: program.code).begin
+                let begin = Block(endingAt: idx, in: program.code).begin
                 let comparator = (begin.op as! BeginDoWhile).comparator
                 let cond = BinaryExpression.new() <> expr(for: begin.input(0)) <> " " <> comparator.token <> " " <> expr(for: begin.input(1))
                 w.emit("} while (\(cond));")
@@ -501,7 +501,7 @@ public class JavaScriptLifter: Lifter {
             if let expression = output {
                 let v = instr.output
 
-                if policy.shouldInline(expression) && analyzer.numAssignments(of: v) == 1 && expression.canInline(instr, analyzer.usesIndices(of: v)) {
+                if policy.shouldInline(expression) && analyzer.numAssignments(of: v) == 1 && expression.canInline(idx, analyzer.uses(of: v)) {
                     expressions[v] = expression
                     // No JS emitted, so skipping type collection
                     continue
@@ -517,7 +517,7 @@ public class JavaScriptLifter: Lifter {
 
             // Update type of every variable returned by analyzer
             for v in typeCollectionAnalyzer.analyze(instr) {
-                w.emit("updateType(\(v.number), \(instr.index), \(expr(for: v)));")
+                w.emit("updateType(\(v.number), \(idx), \(expr(for: v)));")
             }
         }
 

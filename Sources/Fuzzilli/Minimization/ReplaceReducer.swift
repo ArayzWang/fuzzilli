@@ -15,12 +15,12 @@
 // Attemplts to replace code snippets with other, potentially shorter snippets.
 struct ReplaceReducer: Reducer {
     func reduce(_ code: inout Code, with verifier: ReductionVerifier) {
-        for instr in code {
+        for (idx, instr) in code.enumerated() {
             switch instr.op {
             case let op as Construct:
                 // Try replacing with a simple call
                 let newOp = CallFunction(numArguments: op.numArguments)
-                verifier.tryReplacing(instructionAt: instr.index, with: Instruction(newOp, inouts: instr.inouts), in: &code)
+                verifier.tryReplacing(instructionAt: idx, with: Instruction(newOp, inouts: instr.inouts), in: &code)
             default:
                 break
             }

@@ -16,7 +16,7 @@ protocol Analyzer {
     /// Analyzes the next instruction of a program.
     ///
     /// The caller must guarantee that the instructions are given to this method in the correct order.
-    mutating func analyze(_ instr: Instruction)
+    mutating func analyze(_ instr: Instruction, at idx: Int)
 }
 
 extension Analyzer {
@@ -27,8 +27,8 @@ extension Analyzer {
     
     mutating func analyze(_ code: Code) {
         precondition(code.isStaticallyValid())
-        for instr in code {
-            analyze(instr)
+        for (idx, instr) in code.enumerated() {
+            analyze(instr, at: idx)
         }
     }
 }
@@ -44,46 +44,34 @@ struct VariableAnalyzer: Analyzer {
         analyze(program)
     }
     
-    mutating func analyze(_ instr: Instruction) {
+    mutating func analyze(_ instr: Instruction, at idx: Int) {
         for v in instr.allOutputs {
-            assignments[v] = [instr.index]
+            assignments[v] = [idx]
             uses[v] = []
         }
         for v in instr.inputs {
             assert(uses.contains(v))
-            uses[v]?.append(instr.index)
+            uses[v]?.append(idx)
             if instr.reassigns(v) {
-                assignments[v]?.append(instr.index)
+                assignments[v]?.append(idx)
             }
         }
     }
     
     /// Returns the instruction that defines the given variable.
-    func definition(of variable: Variable) -> Instruction {
+    func definition(of variable: Variable) -> Int {
         precondition(assignments.contains(variable))
-        return code[assignments[variable]![0]]
+        return assignments[variable]![0]
     }
     
     /// Returns all instructions that assign the given variable, including its initial definition.
-    func assignments(of variable: Variable) -> [Instruction] {
+    func assignments(of variable: Variable) -> [Int] {
         precondition(assignments.contains(variable))
-        return assignments[variable]!.map({ code[$0] })
-    }
-    
-    /// Returns the instructions using the given variable.
-    func uses(of variable: Variable) -> [Instruction] {
-        precondition(uses.contains(variable))
-        return uses[variable]!.map({ code[$0] })
-    }
-    
-    /// Returns the indices of the instructions using the given variable.
-    func assignmentIndices(of variable: Variable) -> [Int] {
-        precondition(uses.contains(variable))
         return assignments[variable]!
     }
     
-    /// Returns the indices of the instructions using the given variable.
-    func usesIndices(of variable: Variable) -> [Int] {
+    /// Returns the instructions using the given variable.
+    func uses(of variable: Variable) -> [Int] {
         precondition(uses.contains(variable))
         return uses[variable]!
     }
@@ -106,7 +94,7 @@ struct ScopeAnalyzer: Analyzer {
     var scopes = [[Variable]()]
     var visibleVariables = [Variable]()
  
-    mutating func analyze(_ instr: Instruction) {
+    mutating func analyze(_ instr: Instruction, at idx: Int) {
         // Scope management (1).
         if instr.isBlockEnd {
             assert(scopes.count > 0, "Trying to end a scope that was never started")
@@ -161,7 +149,7 @@ struct ContextAnalyzer: Analyzer {
         return contextStack.last!
     }
     
-    mutating func analyze(_ instr: Instruction) {
+    mutating func analyze(_ instr: Instruction, at idx: Int) {
         if instr.isLoopEnd ||
             instr.op is EndAnyFunctionDefinition ||
             instr.op is EndWith {
@@ -191,7 +179,7 @@ struct DeadCodeAnalyzer: Analyzer {
         return depth != 0
     }
     
-    mutating func analyze(_ instr: Instruction) {
+    mutating func analyze(_ instr: Instruction, at idx: Int) {
         if instr.isBlockEnd && currentlyInDeadCode {
             depth -= 1
         }

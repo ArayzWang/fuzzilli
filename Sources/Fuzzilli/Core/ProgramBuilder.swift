@@ -375,10 +375,10 @@ public class ProgramBuilder {
         return variables.map(adopt)
     }
 
-    private func adoptTypes(from origInstr: Instruction) {
+    /*private func adoptTypes(from origInstr: Instruction, at origIdx: Int) {
         let newInstr = code.lastInstruction
         for (originalVariable, adoptedVariable) in zip(origInstr.inouts, newInstr.inouts) {
-            if let instrMap = typeMaps.last![originalVariable], let type = instrMap[origInstr.index], type != .unknown {
+            if let instrMap = typeMaps.last![originalVariable], let type = instrMap[origIdx], type != .unknown {
                 // TODO remove code duplication between this and Program.setRuntimeType. Probably by moving this logic into a TypeInformation data structure?
                 if runtimeTypes[adoptedVariable] == nil {
                     runtimeTypes[adoptedVariable] = [:]
@@ -387,13 +387,13 @@ public class ProgramBuilder {
                 interpreter?.setType(of: adoptedVariable, to: type)
             }
         }
-    }
+    }*/
     
     /// Adopts an instruction from the program that is currently configured for adoption into the program being constructed.
     public func adopt(_ instr: Instruction, keepTypes: Bool) {
         internalAppend(Instruction(instr.op, inouts: adopt(instr.inouts)))
         if keepTypes {
-            adoptTypes(from: instr)
+            //adoptTypes(from: instr)
         }
     }
     
@@ -453,7 +453,8 @@ public class ProgramBuilder {
         // This maps victim instruction indices to victim : host variable remap
         // Instead of calling adopt and then using nextvar if the variable is
         // not in the varMaps map, we do the adoption manually.
-        func rewireOrKeepInputs(of instr: Instruction) {
+        func rewireOrKeepInputs(of idx: Int) {
+            let instr = source[idx]
             var inputs = Array(instr.inputs)
             var neededInputs: [Variable] = []
             for (idx, input) in instr.inputs.enumerated() {
@@ -473,27 +474,27 @@ public class ProgramBuilder {
             }
             // Rewrite the instruction with the new inputs only if we have modified it.
             if inputs[...] != instr.inputs {
-                source.replace(instr, with: Instruction(instr.op, inouts: inputs + Array(instr.allOutputs)))
+                source[idx] = Instruction(instr.op, inouts: inputs + Array(instr.allOutputs))
             }
             requiredInputs.formUnion(neededInputs)
-            requiredInstructions.insert(instr.index)
+            requiredInstructions.insert(idx)
         }
 
-        func keep(_ instr: Instruction, includeBlockContent: Bool = false) {
-            guard !requiredInstructions.contains(instr.index) else { return }
-            if instr.isBlock {
-                let group = BlockGroup(around: instr, in: source)
+        func keep(_ idx: Int, includeBlockContent: Bool = false) {
+            guard !requiredInstructions.contains(idx) else { return }
+            if source[idx].isBlock {
+                let group = BlockGroup(surrounding: idx, in: source)
                 let instructions = includeBlockContent ? group.includingContent() : group.excludingContent()
                 for instr in instructions {
                     rewireOrKeepInputs(of: instr)
                 }
             } else {
-                rewireOrKeepInputs(of: instr)
+                rewireOrKeepInputs(of: idx)
             }
         }
 
         // Keep the selected instruction
-        keep(program.code[idx], includeBlockContent: true)
+        keep(idx, includeBlockContent: true)
 
         while idx > 0 {
             idx -= 1
@@ -503,20 +504,20 @@ public class ProgramBuilder {
                 let onlyNeedsInnerOutputs = requiredInputs.isDisjoint(with: current.outputs)
                 // If we only need inner outputs (e.g. function parameters), then we don't include
                 // the block's content in the slice. Otherwise we do.
-                keep(current, includeBlockContent: !onlyNeedsInnerOutputs)
+                keep(idx, includeBlockContent: !onlyNeedsInnerOutputs)
             }
 
             // If we perform a potentially mutating operation (such as a property store or a method call)
             // on a required variable, then we may decide to keep that instruction as well.
             if mode == .conservative || (mode == .aggressive && probability(0.5)) {
                 if current.mayMutate(requiredInputs) {
-                    keep(current, includeBlockContent: false)
+                    keep(idx, includeBlockContent: false)
                 }
             }
         }
 
-        for instr in source {
-            if requiredInstructions.contains(instr.index) {
+        for (idx, instr) in source.enumerated() {
+            if requiredInstructions.contains(idx) {
                 adopt(instr, keepTypes: true)
             }
         }
@@ -998,8 +999,8 @@ public class ProgramBuilder {
         
         // Update our analyses
         interpreter?.execute(instr)
-        scopeAnalyzer.analyze(instr)
-        contextAnalyzer.analyze(instr)
+        scopeAnalyzer.analyze(instr, at: code.count - 1)
+        contextAnalyzer.analyze(instr, at: code.count - 1)
         updateConstantPool(instr.op)
     }
     

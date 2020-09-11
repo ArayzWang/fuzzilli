@@ -24,8 +24,8 @@ public class CodeGenMutator: BaseInstructionMutator {
         analyzer = DeadCodeAnalyzer()
     }
     
-    public override func canMutate(_ instr: Instruction) -> Bool {
-        analyzer.analyze(instr)
+    public override func canMutate(_ instr: Instruction, at idx: Int) -> Bool {
+        analyzer.analyze(instr, at: idx)
         return !analyzer.currentlyInDeadCode
     }
     

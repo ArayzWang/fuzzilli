@@ -23,9 +23,9 @@ public class BaseInstructionMutator: Mutator {
         beginMutation(of: program)
         
         var candidates = [Int]()
-        for instr in program.code {
-            if canMutate(instr) {
-                candidates.append(instr.index)
+        for (idx, instr) in program.code.enumerated() {
+            if canMutate(instr, at: idx) {
+                candidates.append(idx)
             }
         }
         
@@ -40,8 +40,8 @@ public class BaseInstructionMutator: Mutator {
         
         let b = fuzzer.makeBuilder()
         b.adopting(from: program) {
-            for instr in program.code {
-                if toMutate.contains(instr.index) {
+            for (idx, instr) in program.code.enumerated() {
+                if toMutate.contains(idx) {
                     mutate(instr, b)
                 } else {
                     b.adopt(instr, keepTypes: true)
@@ -57,7 +57,7 @@ public class BaseInstructionMutator: Mutator {
     
     /// Overridden by child classes.
     /// Determines the set of instructions that can be mutated by this mutator
-    public func canMutate(_ instr: Instruction) -> Bool {
+    public func canMutate(_ instr: Instruction, at idx: Int) -> Bool {
         fatalError("This method must be overridden")
     }
     

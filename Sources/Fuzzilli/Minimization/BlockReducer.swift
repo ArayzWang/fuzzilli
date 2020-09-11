@@ -66,11 +66,12 @@ struct BlockReducer: Reducer {
         
         // Scan the body for break or continue instructions and remove those as well
         var analyzer = ContextAnalyzer()
-        for instr in loop.body() {
-            analyzer.analyze(instr)
+        for idx in loop.body() {
+            let instr = code[idx]
+            analyzer.analyze(instr, at: idx)
             // TODO instead have something like '&& instr.onlyValidInLoopBody`
             if !analyzer.context.contains(.loop) && (instr.op is Break || instr.op is Continue) {
-                candidates.append(instr.index)
+                candidates.append(idx)
             }
         }
         
@@ -80,8 +81,8 @@ struct BlockReducer: Reducer {
     private func reduceGenericBlockGroup(_ group: BlockGroup, in code: inout Code, with verifier: ReductionVerifier) {
         var candidates = [Int]()
         
-        for instr in group.excludingContent() {
-            candidates.append(instr.index)
+        for idx in group.excludingContent() {
+            candidates.append(idx)
         }
         
         verifier.tryNopping(candidates, in: &code)
@@ -136,16 +137,16 @@ struct BlockReducer: Reducer {
         
         var candidates = [Int]()
         
-        candidates.append(tryCatch[0].index)
-        candidates.append(tryCatch[1].index)
-        candidates.append(tryCatch[2].index)
+        candidates.append(tryCatch[0])
+        candidates.append(tryCatch[1])
+        candidates.append(tryCatch[2])
         
         if verifier.tryNopping(candidates, in: &code) {
             return
         }
 
         // Find the last instruction in try block and try removing that as well.
-        for i in stride(from: tryCatch[1].index - 1, to: tryCatch[0].index, by: -1) {
+        for i in stride(from: tryCatch[1] - 1, to: tryCatch[0], by: -1) {
             if !(code[i].op is Nop) {
                 if !code[i].isBlock {
                     candidates.append(i)
@@ -173,7 +174,7 @@ struct BlockReducer: Reducer {
         }
         
         // Find last instruction in try block
-        for i in stride(from: tryCatch[1].index - 1, to: tryCatch[0].index, by: -1) {
+        for i in stride(from: tryCatch[1] - 1, to: tryCatch[0], by: -1) {
             if !(tryCatch.code[i].op is Nop) {
                 candidates.append(i)
             }

@@ -95,20 +95,20 @@ public class MutationEngine: ComponentBase, FuzzEngine {
         // it to ease mutation later on
         b.adopting(from: program) {
             var blocks = [Int]()
-            for instr in program.code {
+            for (idx, instr) in program.code.enumerated() {
                 if instr.isBlockEnd {
                     let beginIdx = blocks.removeLast()
-                    if instr.index - beginIdx == 1 {
+                    if idx - beginIdx == 1 {
                         b.nop()
                     }
-                    let prevInstr = program.code.before(instr)!
+                    let prevInstr = program.code[idx - 1]
                     if instr.op is EndAnyFunctionDefinition && prevInstr.op is Return {
                         let rval = b.randVar()
                         b.doReturn(value: rval)
                     }
                 }
                 if instr.isBlockBegin {
-                    blocks.append(instr.index)
+                    blocks.append(idx)
                 }
                 b.adopt(instr, keepTypes: true)
             }

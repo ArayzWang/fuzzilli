@@ -15,12 +15,16 @@
 /// Removes simple instructions from a program if they are not required.
 struct GenericInstructionReducer: Reducer {
     func reduce(_ code: inout Code, with verifier: ReductionVerifier) {
-        for instr in code.reversed() {
+        // TODO
+        var idx = code.count - 1
+        while idx >= 0 {
+            let instr = code[idx]
             if !instr.isSimple || instr.op is Nop || instr.op is Comment {
                 continue
             }
             
-            verifier.tryNopping(instructionAt: instr.index, in: &code)
+            verifier.tryNopping(instructionAt: idx, in: &code)
+            idx -= 1
         }
     }
 }

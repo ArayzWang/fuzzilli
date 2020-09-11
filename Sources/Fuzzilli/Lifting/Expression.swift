@@ -67,12 +67,12 @@ public struct Expression: CustomStringConvertible {
         return text
     }
     
-    func canInline(_ instr: Instruction, _ uses: [Int]) -> Bool {
+    func canInline(_ idx: Int, _ uses: [Int]) -> Bool {
         switch inlineability {
         case .never:
             return false
         case .onlyFollowing:
-            return uses.count == 1 && uses[0] == instr.index + 1
+            return uses.count == 1 && uses[0] == idx + 1
         case .singleUseOnly:
             return uses.count == 1
         case .always:

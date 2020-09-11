@@ -55,20 +55,8 @@ public struct Code: Collection {
             instructions[i]
         }
         set {
-            instructions[i] = Instruction(newValue.op, inouts: newValue.inouts, index: i)
+            instructions[i] = newValue
         }
-    }
-    
-    /// Returns the instruction after the given one, if it exists.
-    public func after(_ instr: Instruction) -> Instruction? {
-        let idx = instr.index + 1
-        return idx < endIndex ? self[idx] : nil
-    }
-    
-    /// Returns the instruction before the given one, if it exists.
-    public func before(_ instr: Instruction) -> Instruction? {
-        let idx = instr.index - 1
-        return idx >= 0 ? self[idx] : nil
     }
 
     /// The last instruction in this code.
@@ -88,9 +76,9 @@ public struct Code: Collection {
 
     /// Appends the given instruction to this code.
     public mutating func append(_ instr: Instruction) {
-        instructions.append(Instruction(instr.op, inouts: instr.inouts, index: count))
+        instructions.append(instr)
     }
-
+    
     /// Removes all instructions in this code.
     public mutating func removeAll() {
         instructions.removeAll()
@@ -102,21 +90,11 @@ public struct Code: Collection {
     }
     
     /// Checks whether the given instruction belongs to this code.
-    public func contains(_ instr: Instruction) -> Bool {
+    /*public func contains(_ instr: Instruction) -> Bool {
         let idx = instr.index
         guard idx >= 0 && idx < count else { return false }
         return instr.op === self[idx].op && instr.inouts == self[idx].inouts
-    }
-
-    /// Replaces an instruction with a different one.
-    ///
-    /// - Parameters:
-    ///   - instr: The instruction to replace.
-    ///   - newInstr: The new instruction.
-    public mutating func replace(_ instr: Instruction, with newInstr: Instruction) {
-        assert(contains(instr))
-        self[instr.index] = newInstr
-    }
+    }*/
     
     /// Computes the next free variable in this code.
     public func nextFreeVariable() -> Variable {
@@ -166,11 +144,7 @@ public struct Code: Collection {
         var visibleScopes = [scopeCounter]
         var blockHeads = [Operation]()
 
-        for (idx, instr) in instructions.enumerated() {
-            guard idx == instr.index else {
-                throw FuzzilliError.codeVerificationError("instruction \(idx) has wrong index \(String(describing: instr.index))")
-            }
-
+        for instr in instructions {
             // Ensure all input variables are valid and have been defined
             for input in instr.inputs {
                 guard let definingScope = definedVariables[input] else {

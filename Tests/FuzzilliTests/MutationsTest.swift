@@ -19,8 +19,8 @@ extension BaseInstructionMutator {
         beginMutation(of: program)
         let b = fuzzer.makeBuilder()
         b.adopting(from: program) {
-            for instr in program.code {
-                if instr.index == index {
+            for (idx, instr) in program.code.enumerated() {
+                if idx == index {
                     mutate(instr, b)
                 } else {
                     b.adopt(instr, keepTypes: true)

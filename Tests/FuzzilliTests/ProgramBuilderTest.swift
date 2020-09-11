@@ -53,7 +53,7 @@ class ProgramBuilderTests: XCTestCase {
         let expectedSplice = b.finalize()
         
         // Actual splice
-        b.splice(from: original, at: original.code.lastInstruction.index)
+        b.splice(from: original, at: original.code.count - 1)
         let actualSplice = b.finalize()
         
         XCTAssertEqual(expectedSplice, actualSplice)
@@ -86,7 +86,7 @@ class ProgramBuilderTests: XCTestCase {
         let expectedSplice = b.finalize()
         
         // Actual splice
-        let idx = original.code.lastInstruction.index - 1
+        let idx = original.code.count - 2
         XCTAssert(original.code[idx].op is EndWhile)
         b.splice(from: original, at: idx)
         let actualSplice = b.finalize()
@@ -133,7 +133,7 @@ class ProgramBuilderTests: XCTestCase {
         let expectedSplice = b.finalize()
         
         // Actual splice
-        let idx = original.code.lastInstruction.index - 1
+        let idx = original.code.count - 2
         XCTAssert(original.code[idx].op is CallMethod)
         b.splice(from: original, at: idx)
         let actualSplice = b.finalize()

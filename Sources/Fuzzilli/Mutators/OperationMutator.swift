@@ -18,7 +18,7 @@ public class OperationMutator: BaseInstructionMutator {
         super.init(maxSimultaneousMutations: defaultMaxSimultaneousMutations)
     }
     
-    public override func canMutate(_ instr: Instruction) -> Bool {
+    public override func canMutate(_ instr: Instruction, at idx: Int) -> Bool {
         return instr.isParametric && instr.isMutable
     }
 

@@ -22,7 +22,7 @@ struct CallArgumentReducer: Reducer {
     
     // TODO probably should remove as much as it can?
     func reduce(_ code: inout Code, with verifier: ReductionVerifier) {
-        for instr in code {
+        for (idx, instr) in code.enumerated() {
             switch instr.op {
             case let op as CallFunction:
                 guard op.numArguments > minArgCount else {
@@ -31,7 +31,7 @@ struct CallArgumentReducer: Reducer {
                 
                 let newOp = CallFunction(numArguments: op.numArguments - 1)
                 let newInstr = Instruction(newOp, output: instr.output, inputs: Array(instr.inputs.dropLast()))
-                verifier.tryReplacing(instructionAt: instr.index, with: newInstr, in: &code)
+                verifier.tryReplacing(instructionAt: idx, with: newInstr, in: &code)
                 
             case let op as CallMethod:
                 guard op.numArguments > minArgCount else {
@@ -40,7 +40,7 @@ struct CallArgumentReducer: Reducer {
                 
                 let newOp = CallMethod(methodName: op.methodName, numArguments: op.numArguments - 1)
                 let newInstr = Instruction(newOp, output: instr.output, inputs: Array(instr.inputs.dropLast()))
-                verifier.tryReplacing(instructionAt: instr.index, with: newInstr, in: &code)
+                verifier.tryReplacing(instructionAt: idx, with: newInstr, in: &code)
                 
             case let op as Construct:
                 guard op.numArguments > minArgCount else {
@@ -49,7 +49,7 @@ struct CallArgumentReducer: Reducer {
                 
                 let newOp = Construct(numArguments: op.numArguments - 1)
                 let newInstr = Instruction(newOp, output: instr.output, inputs: Array(instr.inputs.dropLast()))
-                verifier.tryReplacing(instructionAt: instr.index, with: newInstr, in: &code)
+                verifier.tryReplacing(instructionAt: idx, with: newInstr, in: &code)
                 
             default:
                 break

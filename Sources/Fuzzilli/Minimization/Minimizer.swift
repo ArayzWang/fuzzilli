@@ -67,18 +67,18 @@ public class Minimizer: ComponentBase {
             var indices = Array(0..<program.size).shuffled()
 
             while keptInstructions.count < minimizationLimit {
-                func keep(_ instr: Instruction) {
-                    guard !keptInstructions.contains(instr.index) else { return }
+                func keep(_ idx: Int) {
+                    guard !keptInstructions.contains(idx) else { return }
                     
-                    keptInstructions.insert(instr.index)
+                    keptInstructions.insert(idx)
                     
                     // Keep alive all inputs recursively.
-                    for input in instr.inputs {
+                    for input in program.code[idx].inputs {
                         keep(analyzer.definition(of: input))
                     }
                 }
                 
-                keep(program.code[indices.removeLast()])
+                keep(indices.removeLast())
             }
         }
 

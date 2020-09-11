@@ -27,8 +27,7 @@ public struct Instruction {
     ///      First numInputs Variables: inputs
     ///      Next numOutputs Variables: outputs visible in the outer scope
     ///      Next numInnerOutputs Variables: outputs only visible in the inner scope created by this instruction
-    ///      Final value, if present, the index of this instruction in the code object it is part of.
-    private let inouts_: [Variable]
+    public let inouts: [Variable]
 
 
     /// The number of input variables of this instruction.
@@ -48,7 +47,7 @@ public struct Instruction {
 
     /// The total number of inputs and outputs of this instruction.
     public var numInouts: Int {
-        return numInputs + numOutputs + numInnerOutputs
+        return inouts.count
     }
 
     /// Whether this instruction has any inputs.
@@ -59,12 +58,12 @@ public struct Instruction {
     /// Returns the ith input variable.
     public func input(_ i: Int) -> Variable {
         assert(i < numInputs)
-        return inouts_[i]
+        return inouts[i]
     }
 
     /// The input variables of this instruction.
     public var inputs: ArraySlice<Variable> {
-        return inouts_[..<numInputs]
+        return inouts[..<numInputs]
     }
 
     /// Whether this instruction has any outputs.
@@ -75,45 +74,29 @@ public struct Instruction {
     /// Convenience getter for simple operations that produce a single output variable.
     public var output: Variable {
         assert(numOutputs == 1)
-        return inouts_[numInputs]
+        return inouts[numInputs]
     }
 
     /// Convenience getter for simple operations that produce a single inner output variable.
     public var innerOutput: Variable {
         assert(numInnerOutputs == 1)
-        return inouts_[numInputs + numOutputs]
+        return inouts[numInputs + numOutputs]
     }
 
     /// The output variables of this instruction.
     public var outputs: ArraySlice<Variable> {
-        return inouts_[numInputs ..< numInputs + numOutputs]
+        return inouts[numInputs ..< numInputs + numOutputs]
     }
 
     /// The output variables of this instruction that are only visible in the inner scope.
     public var innerOutputs: ArraySlice<Variable> {
-        return inouts_[numInputs + numOutputs ..< numInouts]
+        return inouts[numInputs + numOutputs ..< numInouts]
     }
 
     /// The inner and outer output variables of this instruction combined.
     public var allOutputs: ArraySlice<Variable> {
-        return inouts_[numInputs ..< numInouts]
+        return inouts[numInputs ..< numInouts]
     }
-
-    /// All inputs and outputs of this instruction combined.
-    public var inouts: ArraySlice<Variable> {
-        return inouts_[..<numInouts]
-    }
-
-    /// The index of this instruction in the Code it belongs to.
-    /// A value of -1 indicates that this instruction does not belong to any code.
-    public var index: Int {
-        // We store the index in the internal inouts array for memory efficiency reasons.
-        // In practice, this does not limit the size of programs/code since that's already
-        // limited by the fact that variables are UInt16 internally.
-        let indexVar = numInouts == inouts_.count ? nil : inouts_.last
-        return Int(indexVar?.number ?? -1)
-    }
-
 
     ///
     /// Flag accessors.
@@ -207,37 +190,33 @@ public struct Instruction {
     }
 
 
-    public init<Variables: Collection>(_ op: Operation, inouts: Variables, index: Int? = nil) where Variables.Element == Variable {
+    public init(_ op: Operation, inouts: [Variable]) {
         self.op = op
-        var inouts_ = Array(inouts)
-        if let idx = index {
-            inouts_.append(Variable(number: idx))
-        }
-        self.inouts_ = inouts_
+        self.inouts = inouts
     }
 
     public init(_ op: Operation, output: Variable, index: Int? = nil) {
         assert(op.numInputs == 0 && op.numOutputs == 1 && op.numInnerOutputs == 0)
-        self.init(op, inouts: [output], index: index)
+        self.init(op, inouts: [output])
     }
 
     public init(_ op: Operation, output: Variable, inputs: [Variable], index: Int? = nil) {
         assert(op.numOutputs == 1)
         assert(op.numInnerOutputs == 0)
         assert(op.numInputs == inputs.count)
-        self.init(op, inouts: inputs + [output], index: index)
+        self.init(op, inouts: inputs + [output])
     }
 
     public init(_ op: Operation, inputs: [Variable], index: Int? = nil) {
         assert(op.numOutputs + op.numInnerOutputs == 0)
         assert(op.numInputs == inputs.count)
-        self.init(op, inouts: inputs, index: index)
+        self.init(op, inouts: inputs)
     }
 
     public init(_ op: Operation, index: Int? = nil) {
         assert(op.numOutputs == 0)
         assert(op.numInputs == 0)
-        self.init(op, inouts: [], index: index)
+        self.init(op, inouts: [])
     }
 }
 

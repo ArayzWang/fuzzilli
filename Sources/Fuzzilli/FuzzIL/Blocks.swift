@@ -50,35 +50,37 @@ public struct Block {
         
         assert(begin.isBlockBegin)
         assert(end.isBlockEnd)
-        assert(Blocks.findBlockBegin(end: end, in: code).index == head)
-        assert(Blocks.findBlockEnd(head: begin, in: code).index == tail)
+        assert(Blocks.findBlockBegin(end: tail, in: code) == head)
+        assert(Blocks.findBlockEnd(start: head, in: code) == tail)
     }
     
-    public init(startedBy head: Instruction, in code: Code) {
-        precondition(code.contains(head))
-        precondition(head.isBlockEnd)
-        let end = Blocks.findBlockEnd(head: head, in: code)
-        self.init(head: head.index, tail: end.index, in: code)
+    public init(startingAt head: Int, in code: Code) {
+        precondition(code[head].isBlockEnd)
+        let tail = Blocks.findBlockEnd(start: head, in: code)
+        self.init(head: head, tail: tail, in: code)
     }
     
-    public init(endedBy end: Instruction, in code: Code) {
-        precondition(code.contains(end))
-        precondition(end.isBlockEnd)
-        let begin = Blocks.findBlockBegin(end: end, in: code)
-        self.init(head: begin.index, tail: end.index, in: code)
+    public init(endingAt tail: Int, in code: Code) {
+        precondition(code[tail].isBlockEnd)
+        let head = Blocks.findBlockBegin(end: tail, in: code)
+        self.init(head: head, tail: tail, in: code)
     }
     
     /// Returns the list of instruction in the body of this block.
     ///
     /// TODO make iterator instead?
-    public func body() -> [Instruction] {
-        var instrs = [Instruction]()
+    public func body() -> [Int] {
+        var content = [Int]()
         var idx = head + 1
         while idx < tail {
-            instrs.append(code[idx])
+            content.append(idx)
             idx += 1
         }
-        return instrs
+        return content
+    }
+    
+    public func foo() -> ClosedRange<Int> {
+        return head...tail
     }
 }
 
@@ -130,6 +132,7 @@ public struct BlockGroup {
     }
     
     /// Indices of the block instructions belonging to this block group
+    // TODO rename this maybe?
     private let blockInstructions: [Int]
     
     /// Constructs a block group from the a list of block instructions.
@@ -137,23 +140,21 @@ public struct BlockGroup {
     /// - Parameters:
     ///   - blockInstructions: The block instructions that make up the block group.
     ///   - program: The program that the instructions are part of.
-    fileprivate init(_ blockInstructions: [Instruction], in code: Code) {
+    fileprivate init(_ blockInstructions: [Int], in code: Code) {
         self.code = code
-        self.blockInstructions = blockInstructions.map { $0.index }
+        self.blockInstructions = blockInstructions
         assert(begin.isBlockGroupBegin)
         assert(end.isBlockGroupEnd)
     }
     
-    public init(startedBy head: Instruction, in code: Code) {
-        assert(code.contains(head))
-        let blockInstructions = Blocks.collectBlockGroupInstructions(head: head, in: code)
+    public init(startingAt head: Int, in code: Code) {
+        let blockInstructions = Blocks.collectBlockGroup(start: head, in: code)
         self.init(blockInstructions, in: code)
     }
     
-    public init(around instr: Instruction, in code: Code) {
-        assert(code.contains(instr))
-        let head = Blocks.findBlockGroupHead(around: instr, in: code)
-        self.init(startedBy: head, in: code)
+    public init(surrounding idx: Int, in code: Code) {
+        let head = Blocks.findBlockGroupHead(surrounding: idx, in: code)
+        self.init(startingAt: head, in: code)
     }
     
     /// Returns the ith block in this block group.
@@ -162,19 +163,19 @@ public struct BlockGroup {
     }
     
     /// Returns the ith block instruction in this block group.
-    subscript(i: Int) -> Instruction {
-        return code[blockInstructions[i]]
+    subscript(i: Int) -> Int {
+        return blockInstructions[i]
     }
     
     /// Returns a list of all block instructions that make up this block group.
-    func excludingContent() -> [Instruction] {
-        return blockInstructions.map { code[$0] }
+    func excludingContent() -> [Int] {
+        return blockInstructions
     }
     
     /// Returns a list of all instructions, including content instructions, of this block group.
     // TODO should return a custom Sequence.
-    func includingContent() -> [Instruction] {
-        return Array(code[head...tail])
+    func includingContent() -> [Int] {
+        return Array(head...tail)
     }
 }
 
@@ -183,10 +184,10 @@ public class Blocks {
     // TODO see if it's possible to factor out and reuse the common traversal code.
     
     // TODO merge with findBlockBegin
-    static func findBlockEnd(head: Instruction, in code: Code) -> Instruction {
-        precondition(head.isBlockBegin)
+    static func findBlockEnd(start: Int, in code: Code) -> Int {
+        precondition(code[start].isBlockBegin)
         
-        var idx = head.index + 1
+        var idx = start + 1
         var depth = 1
         while idx < code.count {
             let current = code[idx]
@@ -195,7 +196,7 @@ public class Blocks {
             }
             if depth == 0 {
                 assert(current.isBlockEnd)
-                return current
+                return idx
             }
             if current.isBlockBegin {
                 depth += 1
@@ -206,10 +207,10 @@ public class Blocks {
         fatalError("Invalid code")
     }
     
-    static func findBlockBegin(end: Instruction, in code: Code) -> Instruction {
-        precondition(end.isBlockEnd)
+    static func findBlockBegin(end: Int, in code: Code) -> Int {
+        precondition(code[end].isBlockEnd)
         
-        var idx = end.index - 1
+        var idx = end - 1
         var depth = 1
         while idx >= 0 {
             let current = code[idx]
@@ -219,7 +220,7 @@ public class Blocks {
             // Note: the placement of this if is the only difference from the following function...
             if depth == 0 {
                 assert(current.isBlockBegin)
-                return current
+                return idx
             }
             if current.isBlockEnd {
                 depth += 1
@@ -230,12 +231,12 @@ public class Blocks {
         fatalError("Invalid code")
     }
 
-    static func findBlockGroupHead(around instr: Instruction, in code: Code) -> Instruction {
-        guard !instr.isBlockGroupBegin else {
-            return instr
+    static func findBlockGroupHead(surrounding idx: Int, in code: Code) -> Int {
+        guard !code[idx].isBlockGroupBegin else {
+            return idx
         }
         
-        var idx = instr.index - 1
+        var idx = idx - 1
         var depth = 1
         repeat {
             let current = code[idx]
@@ -247,7 +248,7 @@ public class Blocks {
             }
             if depth == 0 {
                 assert(current.isBlockGroupBegin)
-                return current
+                return idx
             }
             idx -= 1
         } while idx >= 0
@@ -255,10 +256,10 @@ public class Blocks {
         fatalError("Invalid code")
     }
     
-    static func collectBlockGroupInstructions(head: Instruction, in code: Code) -> [Instruction] {
-        var blockInstructions = [head]
+    static func collectBlockGroup(start: Int, in code: Code) -> [Int] {
+        var content = [start]
         
-        var idx = head.index + 1
+        var idx = start + 1
         var depth = 1
         repeat {
             let current = code[idx]
@@ -268,33 +269,33 @@ public class Blocks {
             }
             if current.isBlockBegin {
                 if depth == 0 {
-                    blockInstructions.append(current)
+                    content.append(idx)
                 }
                 depth += 1
             }
             if depth == 0 {
                 assert(current.isBlockGroupEnd)
-                blockInstructions.append(current)
+                content.append(idx)
                 break
             }
             idx += 1
         } while idx < code.count
         assert(idx < code.count)
         
-        return blockInstructions
+        return content
     }
     
     static func findAllBlockGroups(in code: Code) -> [BlockGroup] {
         var groups = [BlockGroup]()
         
-        var blockStack = [[Instruction]]()
-        for instr in code {
+        var blockStack = [[Int]]()
+        for (idx, instr) in code.enumerated() {
             if instr.isBlockBegin && !instr.isBlockEnd {
                 // By definition, this is the start of a block group
-                blockStack.append([instr])
+                blockStack.append([idx])
             } else if instr.isBlockEnd {
                 // Either the end of a block group or a new block in the current block group.
-                blockStack[blockStack.count - 1].append(instr)
+                blockStack[blockStack.count - 1].append(idx)
                 if !instr.isBlockBegin {
                     groups.append(BlockGroup(blockStack.removeLast(), in: code))
                 }
